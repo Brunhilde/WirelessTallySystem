@@ -4,12 +4,220 @@
  Author:	Tobias Dieterich
 */
 
-// the setup function runs once when you press reset or power the board
-void setup() {
+#include <SoftwareSerial.h>
+#include <Streaming.h>
+#include <TimerOne.h>
 
+const bool G_DEBUG = 0;
+
+const int C_PIN_SS_RX = 2;
+const int C_PIN_SS_TX = 3;
+
+const int C_PIN_DIP1 = 4;
+const int C_PIN_DIP2 = 5;
+const int C_PIN_DIP3 = 6;
+const int C_PIN_DIP4 = 7;
+
+const int C_PIN_TALLY_PGM = 8;
+const int C_PIN_TALLY_PRV = 9;
+
+const int C_PIN_STS_LED = 13;
+
+int G_ADDR = 0;
+int G_ADDR_LAST = 0;
+
+bool g_Tally_PGM = false;
+bool g_Tally_PRV = false;
+
+typedef enum
+{
+  E_STATE_IDLE,
+  E_STATE_RX_ID,
+  E_STATE_ACTION
+} eState;
+
+eState g_State = E_STATE_IDLE;
+
+char g_Cmd = ' ';
+int  g_ID = 0;
+
+SoftwareSerial XBee(C_PIN_SS_RX, C_PIN_SS_TX);
+
+// prototypes
+void checkAddress(void);
+
+void setup()
+{
+  // put your setup code here, to run once:
+  pinMode(C_PIN_DIP1, INPUT);
+  pinMode(C_PIN_DIP2, INPUT);
+  pinMode(C_PIN_DIP3, INPUT);
+  pinMode(C_PIN_DIP4, INPUT);
+
+  pinMode(C_PIN_TALLY_PGM, OUTPUT);
+  pinMode(C_PIN_TALLY_PRV, OUTPUT);
+
+  pinMode(C_PIN_STS_LED, OUTPUT);
+
+  Serial.begin(9600);
+  XBee.begin(9600);
+
+  Timer1.initialize(100000);
+  Timer1.attachInterrupt(statusLED);
 }
 
-// the loop function runs over and over again until power down or reset
-void loop() {
-  
+void loop()
+{
+  // put your main code here, to run repeatedly:
+  checkAddress();
+
+  if (G_ADDR_LAST != G_ADDR)
+  {
+    Serial << "Addr = " << G_ADDR << "\n";
+
+    G_ADDR_LAST = G_ADDR;
+  }
+
+  // tally
+  switch (g_State)
+  {
+  case E_STATE_IDLE:
+  {
+    if (XBee.available())
+    {
+      if (((char)XBee.peek() == 'P') || ((char)XBee.peek() == 'V'))
+      {
+        g_Cmd = (char)XBee.read();
+        g_State = E_STATE_RX_ID;
+
+        if (G_DEBUG)
+        {
+          Serial << "-> E_STATE_RX_ID\n";
+        }
+      }
+      else
+      {
+        if (G_DEBUG)
+        {
+          Serial << "unrecognized '" << (char)XBee.peek() << "'\n";
+        }
+
+        static_cast<void>(XBee.read());
+      }
+    }
+  }
+  break;
+
+  case E_STATE_RX_ID:
+  {
+    if (XBee.available())
+    {
+      if (isDigit((char)XBee.peek()))
+      {
+        g_ID = (char)XBee.read() - 0x30;
+
+        g_State = E_STATE_ACTION;
+
+        if (G_DEBUG)
+        {
+          Serial << "-> E_STATE_RX_ACTION\n";
+        }
+      }
+      else
+      {
+        g_State = E_STATE_IDLE;
+
+        if (G_DEBUG)
+        {
+          Serial << "-> E_STATE_RX_ID back to E_STATE_DILE (" << (char)XBee.peek() << ")\n";
+        }
+      }
+    }
+  }
+  break;
+
+  case E_STATE_ACTION:
+  {
+    switch (g_Cmd)
+    {
+    case 'P':
+    {
+      if (g_ID == G_ADDR)
+      {
+        digitalWrite(C_PIN_TALLY_PGM, 1);
+
+        g_Tally_PGM = true;
+
+        Serial << "PGM tally 'ON'\n";
+        Serial.flush();
+      }
+      else
+      {
+        digitalWrite(C_PIN_TALLY_PGM, 0);
+
+        g_Tally_PGM = false;
+
+        Serial << "PGM tally 'OFF'\n";
+        Serial.flush();
+      }
+    }
+    break;
+
+    case 'V':
+    {
+      if (g_ID == G_ADDR)
+      {
+        digitalWrite(C_PIN_TALLY_PRV, 1);
+
+        g_Tally_PRV = true;
+
+        Serial << "PRV tally 'ON'\n";
+        Serial.flush();
+      }
+      else
+      {
+        digitalWrite(C_PIN_TALLY_PRV, 0);
+
+        g_Tally_PRV = false;
+
+        Serial << "PRV tally 'OFF'\n";
+        Serial.flush();
+      }
+    }
+    break;
+    }
+
+    g_State = E_STATE_IDLE;
+
+    if (G_DEBUG)
+    {
+      Serial << "-> E_STATE_IDLE\n";
+    }
+  }
+  break;
+  }
+}
+
+void statusLED(void)
+{
+  if (g_Tally_PRV)
+  {
+    digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
+  }
+  else if (g_Tally_PGM)
+  {
+    digitalWrite(C_PIN_STS_LED, 1);
+  }
+  else
+  {
+    digitalWrite(C_PIN_STS_LED, 0);
+  }
+}
+
+void checkAddress(void)
+{
+  G_ADDR = (digitalRead(C_PIN_DIP1))
+    + (digitalRead(C_PIN_DIP2) << 1)
+    + (digitalRead(C_PIN_DIP3) << 2)
+    + (digitalRead(C_PIN_DIP4) << 3);
 }

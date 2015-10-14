@@ -17,5 +17,9 @@
   <ItemGroup>
     <None Include="WirelessTallySystem_Client.ino" />
   </ItemGroup>
- 
+  <ItemGroup>
+    <ClInclude Include="__vm\.WirelessTallySystem_Client.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
