@@ -73,7 +73,7 @@ void loop()
 
   if (G_ADDR_LAST != G_ADDR)
   {
-    Serial << "Addr = " << G_ADDR << "\n";
+    Serial << F("Addr = ") << G_ADDR << F("\n");
 
     G_ADDR_LAST = G_ADDR;
   }
@@ -92,14 +92,14 @@ void loop()
 
         if (G_DEBUG)
         {
-          Serial << "-> E_STATE_RX_ID\n";
+          Serial << F("-> E_STATE_RX_ID\n");
         }
       }
       else
       {
         if (G_DEBUG)
         {
-          Serial << "unrecognized '" << (char)XBee.peek() << "'\n";
+          Serial << F("unrecognized '") << (char)XBee.peek() << F("'\n");
         }
 
         static_cast<void>(XBee.read());
@@ -120,7 +120,7 @@ void loop()
 
         if (G_DEBUG)
         {
-          Serial << "-> E_STATE_RX_ACTION\n";
+          Serial << F("-> E_STATE_RX_ACTION\n");
         }
       }
       else
@@ -129,7 +129,7 @@ void loop()
 
         if (G_DEBUG)
         {
-          Serial << "-> E_STATE_RX_ID back to E_STATE_DILE (" << (char)XBee.peek() << ")\n";
+          Serial << F("-> E_STATE_RX_ID back to E_STATE_DILE (") << (char)XBee.peek() << F(")\n");
         }
       }
     }
@@ -148,7 +148,7 @@ void loop()
 
         g_Tally_PGM = true;
 
-        Serial << "PGM tally 'ON'\n";
+        Serial << F("PGM tally 'ON'\n");
         Serial.flush();
       }
       else
@@ -157,7 +157,7 @@ void loop()
 
         g_Tally_PGM = false;
 
-        Serial << "PGM tally 'OFF'\n";
+        Serial << F("PGM tally 'OFF'\n");
         Serial.flush();
       }
     }
@@ -171,7 +171,7 @@ void loop()
 
         g_Tally_PRV = true;
 
-        Serial << "PRV tally 'ON'\n";
+        Serial << F("PRV tally 'ON'\n");
         Serial.flush();
       }
       else
@@ -180,7 +180,7 @@ void loop()
 
         g_Tally_PRV = false;
 
-        Serial << "PRV tally 'OFF'\n";
+        Serial << F("PRV tally 'OFF'\n");
         Serial.flush();
       }
     }
@@ -191,7 +191,7 @@ void loop()
 
     if (G_DEBUG)
     {
-      Serial << "-> E_STATE_IDLE\n";
+      Serial << F("-> E_STATE_IDLE\n");
     }
   }
   break;

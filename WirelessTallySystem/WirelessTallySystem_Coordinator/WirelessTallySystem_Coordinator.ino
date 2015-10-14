@@ -22,6 +22,8 @@ const int C_PIN_STS_LED = 9;
 
 ATEMstd AtemSwitcher;
 
+bool g_b_ATEM_connected = false;
+
 SoftwareSerial XBeeSS(C_PIN_SS_RX, C_PIN_SS_TX);
 
 uint16_t g_idx_PGM_last = 0U;
@@ -64,50 +66,68 @@ void loop()
 {
   AtemSwitcher.runLoop();
 
-  // PGM
-  uint16_t loc_idx_PGM = AtemSwitcher.getProgramInput();
-
-  if (loc_idx_PGM != g_idx_PGM_last)
+  if( AtemSwitcher.isConnected() )
   {
-    Serial << "PGM: " << loc_idx_PGM << "\n";
+    if( !g_b_ATEM_connected )
+    {
+      Timer1.start();
+    }
+    g_b_ATEM_connected = true;
+
+    // PGM
+    uint16_t loc_idx_PGM = AtemSwitcher.getProgramInput();
+
+    if( loc_idx_PGM != g_idx_PGM_last )
+    {
+      Serial << F("PGM: ") << loc_idx_PGM << F("\n");
+
+      Timer1.stop();
+      uint8_t loc_payload[] = { 'P', (uint8_t)loc_idx_PGM + 0x30 };
+      broadcast(loc_payload);
+      Timer1.start();
+    }
+
+    g_idx_PGM_last = loc_idx_PGM;
+
+    // PRV
+    uint16_t loc_idx_PRV = AtemSwitcher.getPreviewInput();
+
+    if( loc_idx_PRV != g_idx_PRV_last )
+    {
+      Serial << F("PRV: ") << loc_idx_PRV << F("\n");
+
+      Timer1.stop();
+      uint8_t loc_payload[] = { 'V', (uint8_t)loc_idx_PRV + 0x30 };
+      broadcast(loc_payload);
+      Timer1.start();
+    }
+
+    g_idx_PRV_last = loc_idx_PRV;
+  }
+  else
+  {
+    g_b_ATEM_connected = false;
 
     Timer1.stop();
-    uint8_t loc_payload[] = { 'P', (uint8_t)loc_idx_PGM + 0x30 };
-    broadcast(loc_payload);
-    Timer1.start();
   }
-
-  g_idx_PGM_last = loc_idx_PGM;
-
-  // PRV
-  uint16_t loc_idx_PRV = AtemSwitcher.getPreviewInput();
-
-  if (loc_idx_PRV != g_idx_PRV_last)
-  {
-    Serial << "PRV: " << loc_idx_PRV << "\n";
-
-    Timer1.stop();
-    uint8_t loc_payload[] = { 'V', (uint8_t)loc_idx_PRV + 0x30 };
-    broadcast(loc_payload);
-    Timer1.start();
-  }
-
-  g_idx_PRV_last = loc_idx_PRV;
 }
 
 void sync(void)
 {
-  uint8_t loc_payload1[] = { 'P', g_idx_PGM_last + 0x30 };
-  broadcast(loc_payload1);
-  uint8_t loc_payload2[] = { 'V', g_idx_PRV_last + 0x30 };
-  broadcast(loc_payload2);
+  if( g_b_ATEM_connected )
+  {
+    uint8_t loc_payload1[] = { 'P', g_idx_PGM_last + 0x30 };
+    broadcast(loc_payload1);
+    uint8_t loc_payload2[] = { 'V', g_idx_PRV_last + 0x30 };
+    broadcast(loc_payload2);
 
-  digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
+    digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
+  }
 }
 
 void broadcast(uint8_t arg_payload[2])
 {
-  for (uint8_t i = 0U; i < g_cnt_Addresses; ++i)
+  for( uint8_t i = 0U; i < g_cnt_Addresses; ++i )
   {
     ZBTxRequest loc_TX(g_Addresses[i], arg_payload, sizeof(arg_payload));
     xbee.send(loc_TX);
