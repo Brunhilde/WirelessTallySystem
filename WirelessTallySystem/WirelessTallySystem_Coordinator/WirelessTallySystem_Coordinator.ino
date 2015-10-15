@@ -4,6 +4,8 @@
  Author:	Tobias Dieterich
 */
 
+#include "ClientManager.h"
+#include "TallyClient.h"
 #include <SPI.h>
 #include <Ethernet.h>
 #include <Streaming.h>
@@ -13,6 +15,12 @@
 #include <TimerOne.h>
 #include <XBee.h>
 
+#include "ClientManager.h"
+
+
+// ----------------------------------------------
+//  S E T U P
+// ----------------------------------------------
 const bool G_DEBUG = 0;
 
 const int C_PIN_SS_RX = 2;
@@ -20,46 +28,54 @@ const int C_PIN_SS_TX = 3;
 
 const int C_PIN_STS_LED = 9;
 
+byte mac[] = { 0x90, 0xA2, 0xDA, 0x10, 0x25, 0x4E }; // <= SETUP!  MAC address of the Arduino
+IPAddress clientIp(172, 31, 8, 100);                 // <= SETUP!  IP address of the Arduino
+IPAddress switcherIp(172, 31, 8, 1);                 // <= SETUP!  IP address of the ATEM Switcher
+
+long g_t_Sync = 5; // [ms] (re-)sync timer period
+
+
+// ----------------------------------------------
+// I N S T A N C E S
+// ----------------------------------------------
 ATEMstd AtemSwitcher;
-
-bool g_b_ATEM_connected = false;
-
 SoftwareSerial XBeeSS(C_PIN_SS_RX, C_PIN_SS_TX);
+XBee xbee;
 
+
+// ----------------------------------------------
+// G L O B A L S
+// ----------------------------------------------
+bool g_b_ATEM_connected = false;
 uint16_t g_idx_PGM_last = 0U;
 uint16_t g_idx_PRV_last = 0U;
 
-byte mac[] = { 0x90, 0xA2, 0xDA, 0x10, 0x25, 0x4E }; // <= SETUP!  MAC address of the Arduino
-IPAddress clientIp(172, 31, 8, 100);                 // <= SETUP!  IP address of the Arduino
-IPAddress switcherIp(172, 31, 8, 1);                 // <= SETUP!  IP address of the ATEM Switche
-
-XBeeAddress64 g_Addresses[] =
-{
-  XBeeAddress64(0x0013A200, 0x40DC25E2),
-  XBeeAddress64(0x0013A200, 0x40DC25F9)
-};
-uint8_t g_cnt_Addresses = 2;
-
-XBee xbee;
 
 void setup()
 {
+  // status LED
   pinMode(C_PIN_STS_LED, OUTPUT);
 
-  Ethernet.begin(mac, clientIp);
+  // serial port for status messages
   Serial.begin(9600);
   Serial << F("\n- - - - - - - -\nSerial Started\n");
 
+  // XBee initialization
   XBeeSS.begin(9600);
-
   xbee.setSerial(XBeeSS);
 
+  // ATEM connection
+  Ethernet.begin(mac, clientIp);
   AtemSwitcher.begin(switcherIp);
   AtemSwitcher.serialOutput(0x80);
   AtemSwitcher.connect();
 
-  Timer1.initialize(500000);
+  // (re-)sync timer
+  Timer1.initialize(g_t_Sync*100000);
   Timer1.attachInterrupt(sync);
+
+  // client handling init
+  cClientManager::GetInstance()->Init();
 }
 
 void loop()
@@ -83,7 +99,7 @@ void loop()
 
       Timer1.stop();
       uint8_t loc_payload[] = { 'P', (uint8_t)loc_idx_PGM + 0x30 };
-      broadcast(loc_payload);
+      cClientManager::GetInstance()->Broadcast<2u>(loc_payload);
       Timer1.start();
     }
 
@@ -98,7 +114,7 @@ void loop()
 
       Timer1.stop();
       uint8_t loc_payload[] = { 'V', (uint8_t)loc_idx_PRV + 0x30 };
-      broadcast(loc_payload);
+      cClientManager::GetInstance()->Broadcast<2u>(loc_payload);
       Timer1.start();
     }
 
@@ -110,26 +126,44 @@ void loop()
 
     Timer1.stop();
   }
+
+  // XBee status handling
+  xbee.readPacket();
+
+  if( xbee.getResponse().isAvailable() )
+  {
+    if( xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE )
+    {
+      ZBTxStatusResponse txStatus;
+      
+      xbee.getResponse().getZBTxStatusResponse(txStatus);
+      if( txStatus.getDeliveryStatus() != SUCCESS )
+      {
+        // unsuccessful TX, client is lost
+        cClientManager::GetInstance()->OnClientDisconnected(txStatus.getFrameId() - 1u);
+      }
+    }
+    else if( xbee.getResponse().getApiId() == ZB_IO_NODE_IDENTIFIER_RESPONSE )
+    {
+      ZBRxResponse rxStatus;
+      xbee.getResponse().getZBRxResponse(rxStatus);
+      
+      cClientManager::GetInstance()->OnClientConnected(rxStatus.getRemoteAddress64());
+    }
+  }
 }
 
+// periodic (re-)sync
 void sync(void)
 {
   if( g_b_ATEM_connected )
   {
     uint8_t loc_payload1[] = { 'P', g_idx_PGM_last + 0x30 };
-    broadcast(loc_payload1);
+    cClientManager::GetInstance()->Broadcast<2u>(loc_payload1);
+
     uint8_t loc_payload2[] = { 'V', g_idx_PRV_last + 0x30 };
-    broadcast(loc_payload2);
+    cClientManager::GetInstance()->Broadcast<2u>(loc_payload2);
 
     digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
-  }
-}
-
-void broadcast(uint8_t arg_payload[2])
-{
-  for( uint8_t i = 0U; i < g_cnt_Addresses; ++i )
-  {
-    ZBTxRequest loc_TX(g_Addresses[i], arg_payload, sizeof(arg_payload));
-    xbee.send(loc_TX);
   }
 }
