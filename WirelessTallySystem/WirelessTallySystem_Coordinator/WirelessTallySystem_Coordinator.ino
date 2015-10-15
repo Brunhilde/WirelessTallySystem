@@ -58,7 +58,7 @@ void setup()
 
   // serial port for status messages
   Serial.begin(9600);
-  Serial << F("\n- - - - - - - -\nSerial Started\n");
+  Serial << F("\n- - - - - - - -\nWirelessTallySystem Coordinator started\n");
 
   // XBee initialization
   XBeeSS.begin(9600);
@@ -98,8 +98,10 @@ void loop()
       Serial << F("PGM: ") << loc_idx_PGM << F("\n");
 
       Timer1.stop();
-      uint8_t loc_payload[] = { 'P', (uint8_t)loc_idx_PGM + 0x30 };
-      cClientManager::GetInstance()->Broadcast<2u>(loc_payload);
+
+      uint8_t loc_Payload[] = { 'P', (uint8_t)loc_idx_PGM + 0x30 };
+      cClientManager::GetInstance()->Broadcast<2u>(loc_Payload);
+
       Timer1.start();
     }
 
@@ -113,8 +115,10 @@ void loop()
       Serial << F("PRV: ") << loc_idx_PRV << F("\n");
 
       Timer1.stop();
-      uint8_t loc_payload[] = { 'V', (uint8_t)loc_idx_PRV + 0x30 };
-      cClientManager::GetInstance()->Broadcast<2u>(loc_payload);
+
+      uint8_t loc_Payload[] = { 'V', (uint8_t)loc_idx_PRV + 0x30 };
+      cClientManager::GetInstance()->Broadcast<2u>(loc_Payload);
+
       Timer1.start();
     }
 
@@ -134,21 +138,21 @@ void loop()
   {
     if( xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE )
     {
-      ZBTxStatusResponse txStatus;
+      ZBTxStatusResponse loc_sts_TX;
       
-      xbee.getResponse().getZBTxStatusResponse(txStatus);
-      if( txStatus.getDeliveryStatus() != SUCCESS )
+      xbee.getResponse().getZBTxStatusResponse(loc_sts_TX);
+      if( loc_sts_TX.getDeliveryStatus() != SUCCESS )
       {
         // unsuccessful TX, client is lost
-        cClientManager::GetInstance()->OnClientDisconnected(txStatus.getFrameId() - 1u);
+        cClientManager::GetInstance()->OnClientDisconnected(loc_sts_TX.getFrameId() - 1u);
       }
     }
     else if( xbee.getResponse().getApiId() == ZB_IO_NODE_IDENTIFIER_RESPONSE )
     {
-      ZBRxResponse rxStatus;
-      xbee.getResponse().getZBRxResponse(rxStatus);
+      ZBRxResponse loc_sts_RX;
+      xbee.getResponse().getZBRxResponse(loc_sts_RX);
       
-      cClientManager::GetInstance()->OnClientConnected(rxStatus.getRemoteAddress64());
+      cClientManager::GetInstance()->OnClientConnected(loc_sts_RX.getRemoteAddress64());
     }
   }
 }
@@ -158,11 +162,11 @@ void sync(void)
 {
   if( g_b_ATEM_connected )
   {
-    uint8_t loc_payload1[] = { 'P', g_idx_PGM_last + 0x30 };
-    cClientManager::GetInstance()->Broadcast<2u>(loc_payload1);
+    uint8_t loc_Payload1[] = { 'P', g_idx_PGM_last + 0x30 };
+    cClientManager::GetInstance()->Broadcast<2u>(loc_Payload1);
 
-    uint8_t loc_payload2[] = { 'V', g_idx_PRV_last + 0x30 };
-    cClientManager::GetInstance()->Broadcast<2u>(loc_payload2);
+    uint8_t loc_Payload2[] = { 'V', g_idx_PRV_last + 0x30 };
+    cClientManager::GetInstance()->Broadcast<2u>(loc_Payload2);
 
     digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
   }
