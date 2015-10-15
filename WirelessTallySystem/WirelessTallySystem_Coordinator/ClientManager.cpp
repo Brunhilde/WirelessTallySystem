@@ -49,12 +49,14 @@ void cClientManager::OnClientDisconnected(const uint8_t arg_ID)
 
   if( loc_ptr_Client->IsAvailable() )
   {
+    XBeeAddress64 loc_Addr = loc_ptr_Client->GetAddress();
+
     loc_ptr_Client->SetAvailable(false);
     loc_ptr_Client->SetAddress(XBeeAddress64());
 
     --m_ClientCount;
 
-    Serial << F("ClientManager :: client disconnected, addr msb=0x") << _HEX(loc_ptr_Client->GetAddress().getMsb()) << F(" lsb=0x") << _HEX(loc_ptr_Client->GetAddress().getLsb())
+    Serial << F("ClientManager :: client disconnected, addr msb=0x") << _HEX(loc_Addr.getMsb()) << F(" lsb=0x") << _HEX(loc_Addr.getLsb())
       << F(", ID=") << loc_ptr_Client->GetID() << F("\n")
       << F("ClientManager :: ") << m_ClientCount << F(" clients connected\n");
   }
