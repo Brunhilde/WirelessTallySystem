@@ -8,7 +8,7 @@
 #include <Streaming.h>
 #include <TimerOne.h>
 
-const bool G_DEBUG = 0;
+const bool G_DEBUG = false;
 
 const int C_PIN_SS_RX = 2;
 const int C_PIN_SS_TX = 3;
@@ -32,7 +32,7 @@ bool g_Tally_PRV = false;
 typedef enum
 {
   E_STATE_IDLE,
-  E_STATE_RX_ID,
+  E_STATE_RX_STATE,
   E_STATE_ACTION
 } eState;
 
@@ -76,6 +76,9 @@ void loop()
     Serial << F("Addr = ") << G_ADDR << F("\n");
 
     G_ADDR_LAST = G_ADDR;
+
+    // inform coordinator
+    XBee << 'S' << G_ADDR_LAST;
   }
 
   // tally
@@ -88,11 +91,22 @@ void loop()
       if (((char)XBee.peek() == 'P') || ((char)XBee.peek() == 'V'))
       {
         g_Cmd = (char)XBee.read();
-        g_State = E_STATE_RX_ID;
+        g_State = E_STATE_RX_STATE;
 
         if (G_DEBUG)
         {
-          Serial << F("-> E_STATE_RX_ID\n");
+          Serial << F("-> E_STATE_RX_STATE\n");
+        }
+      }
+      else if( (char)XBee.peek() == 'S' )
+      {
+        g_Cmd = (char)XBee.read();
+
+        XBee << 'S' << G_ADDR_LAST;
+
+        if( G_DEBUG )
+        {
+          Serial << F("Received source index request\n");
         }
       }
       else
@@ -108,7 +122,7 @@ void loop()
   }
   break;
 
-  case E_STATE_RX_ID:
+  case E_STATE_RX_STATE:
   {
     if (XBee.available())
     {
@@ -129,7 +143,7 @@ void loop()
 
         if (G_DEBUG)
         {
-          Serial << F("-> E_STATE_RX_ID back to E_STATE_DILE (") << (char)XBee.peek() << F(")\n");
+          Serial << F("-> E_STATE_RX_STATE back to E_STATE_DILE (") << (char)XBee.peek() << F(")\n");
         }
       }
     }
@@ -142,7 +156,7 @@ void loop()
     {
     case 'P':
     {
-      if (g_ID == G_ADDR)
+      if (g_ID == 1)
       {
         digitalWrite(C_PIN_TALLY_PGM, 1);
 
@@ -165,7 +179,7 @@ void loop()
 
     case 'V':
     {
-      if (g_ID == G_ADDR)
+      if (g_ID == 1)
       {
         digitalWrite(C_PIN_TALLY_PRV, 1);
 
@@ -200,13 +214,13 @@ void loop()
 
 void statusLED(void)
 {
-  if (g_Tally_PRV)
-  {
-    digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
-  }
-  else if (g_Tally_PGM)
+  if( g_Tally_PGM )
   {
     digitalWrite(C_PIN_STS_LED, 1);
+  }
+  else if( g_Tally_PRV )
+  {
+    digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
   }
   else
   {

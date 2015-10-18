@@ -47,8 +47,7 @@ XBee xbee;
 // G L O B A L S
 // ----------------------------------------------
 bool g_b_ATEM_connected = false;
-uint16_t g_idx_PGM_last = 0U;
-uint16_t g_idx_PRV_last = 0U;
+uint16_t g_cnt_TallySources = 0U;
 
 
 void setup()
@@ -90,39 +89,19 @@ void loop()
     }
     g_b_ATEM_connected = true;
 
-    // PGM
-    uint16_t loc_idx_PGM = AtemSwitcher.getProgramInput();
-
-    if( loc_idx_PGM != g_idx_PGM_last )
+    // determine tally sources
+    if( g_cnt_TallySources == 0u )
     {
-      Serial << F("PGM: ") << loc_idx_PGM << F("\n");
-
-      Timer1.stop();
-
-      uint8_t loc_Payload[] = { 'P', (uint8_t)loc_idx_PGM + 0x30 };
-      cClientManager::GetInstance()->Broadcast<2u>(loc_Payload);
-
-      Timer1.start();
+      g_cnt_TallySources = AtemSwitcher.getTallyByIndexSources();
     }
 
-    g_idx_PGM_last = loc_idx_PGM;
-
-    // PRV
-    uint16_t loc_idx_PRV = AtemSwitcher.getPreviewInput();
-
-    if( loc_idx_PRV != g_idx_PRV_last )
+    // determine tally states
+    for( uint16_t i = 0u; i < g_cnt_TallySources; ++i )
     {
-      Serial << F("PRV: ") << loc_idx_PRV << F("\n");
+      uint8_t loc_State = AtemSwitcher.getTallyByIndexTallyFlags(i);
 
-      Timer1.stop();
-
-      uint8_t loc_Payload[] = { 'V', (uint8_t)loc_idx_PRV + 0x30 };
-      cClientManager::GetInstance()->Broadcast<2u>(loc_Payload);
-
-      Timer1.start();
+      cClientManager::GetInstance()->SetClientTallyState(i+1u, loc_State);
     }
-
-    g_idx_PRV_last = loc_idx_PRV;
   }
   else
   {
@@ -136,7 +115,15 @@ void loop()
 
   if( xbee.getResponse().isAvailable() )
   {
-    if( xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE )
+    if( xbee.getResponse().getApiId() == ZB_RX_RESPONSE )
+    {
+      ZBRxResponse loc_RX;
+
+      xbee.getResponse().getZBRxResponse(loc_RX);
+      
+      cClientManager::GetInstance()->OnClientDataReceived(loc_RX.getRemoteAddress64(), loc_RX.getData(), loc_RX.getDataLength());
+    }
+    else if( xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE )
     {
       ZBTxStatusResponse loc_sts_TX;
       
@@ -154,6 +141,10 @@ void loop()
       
       cClientManager::GetInstance()->OnClientConnected(loc_sts_RX.getRemoteAddress64());
     }
+    else
+    {
+      // NOP
+    }
   }
 }
 
@@ -162,11 +153,7 @@ void sync(void)
 {
   if( g_b_ATEM_connected )
   {
-    uint8_t loc_Payload1[] = { 'P', g_idx_PGM_last + 0x30 };
-    cClientManager::GetInstance()->Broadcast<2u>(loc_Payload1);
-
-    uint8_t loc_Payload2[] = { 'V', g_idx_PRV_last + 0x30 };
-    cClientManager::GetInstance()->Broadcast<2u>(loc_Payload2);
+    cClientManager::GetInstance()->InformClientsSync();
 
     digitalWrite(C_PIN_STS_LED, digitalRead(C_PIN_STS_LED) ^ 1);
   }

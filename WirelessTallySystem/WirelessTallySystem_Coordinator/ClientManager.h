@@ -18,10 +18,6 @@
 #endif
 
 
-//! XBee instance
-extern XBee xbee;
-
-
 class cClientManager
 {
 public:
@@ -35,12 +31,16 @@ public:
   // callbacks
   void OnClientConnected(XBeeAddress64& arg_Addr);
   void OnClientDisconnected(const uint8_t arg_ID);
+  void OnClientDataReceived(XBeeAddress64& arg_Addr, uint8_t *arg_ptr_Data, uint8_t arg_DataLength);
 
   // get
   inline cTallyClient *GetClientByID(const uint8_t arg_ID)
   {
     return &m_Clients[arg_ID];
   }
+
+  cTallyClient *GetClientByAddress(XBeeAddress64& arg_Addr);
+  cTallyClient *GetClientBySourceIndex(uint16_t arg_idx_Source);
 
   // other stuff
   inline uint8_t GetMaxClients(void) const
@@ -58,14 +58,13 @@ public:
 
       if( loc_ptr_Client->IsAvailable() )
       {
-        ZBTxRequest& loc_TX_Frame = loc_ptr_Client->GetTXFrame();
-
-        loc_TX_Frame.setPayload(arg_Payload, sizeof(arg_Payload));
-
-        xbee.send(loc_TX_Frame);
+        loc_ptr_Client->Send(arg_Payload, sizeof(arg_Payload));
       }
     }
   }
+
+  void SetClientTallyState(uint16_t arg_idx_Source, uint8_t arg_TallyState);
+  void InformClientsSync(void);
 
 private:
   cClientManager(void);
