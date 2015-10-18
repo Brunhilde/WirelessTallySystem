@@ -8,6 +8,10 @@
 #include <Streaming.h>
 #include <TimerOne.h>
 
+
+// ----------------------------------------------
+//  S E T U P
+// ----------------------------------------------
 const bool G_DEBUG = false;
 
 const int C_PIN_SS_RX = 2;
@@ -21,8 +25,15 @@ const int C_PIN_DIP4 = 7;
 const int C_PIN_TALLY_PGM = 8;
 const int C_PIN_TALLY_PRV = 9;
 
-const int C_PIN_STS_LED = 13;
+const int C_PIN_CONN_LED = 10;
+const int C_PIN_STS_LED  = 13;
 
+long g_t_LED = 100; // [ms] LED timer period
+
+
+// ----------------------------------------------
+// G L O B A L S
+// ----------------------------------------------
 int G_ADDR = 0;
 int G_ADDR_LAST = 0;
 
@@ -41,10 +52,20 @@ eState g_State = E_STATE_IDLE;
 char g_Cmd = ' ';
 int  g_ID = 0;
 
+long g_cnt_Status_wo_RX = 1; // init with 1 !
+
+
+// ----------------------------------------------
+// I N S T A N C E S
+// ----------------------------------------------
 SoftwareSerial XBee(C_PIN_SS_RX, C_PIN_SS_TX);
 
-// prototypes
+
+// ----------------------------------------------
+// P R O T O T Y P E S
+// ----------------------------------------------
 void checkAddress(void);
+
 
 void setup()
 {
@@ -57,13 +78,19 @@ void setup()
   pinMode(C_PIN_TALLY_PGM, OUTPUT);
   pinMode(C_PIN_TALLY_PRV, OUTPUT);
 
+  pinMode(C_PIN_CONN_LED, OUTPUT);
   pinMode(C_PIN_STS_LED, OUTPUT);
 
   Serial.begin(9600);
   XBee.begin(9600);
 
-  Timer1.initialize(100000);
+  Timer1.initialize(g_t_LED*1000);
   Timer1.attachInterrupt(statusLED);
+
+  digitalWrite(C_PIN_TALLY_PGM, 0);
+  digitalWrite(C_PIN_TALLY_PRV, 0);
+  digitalWrite(C_PIN_CONN_LED, 0);
+  digitalWrite(C_PIN_STS_LED, 0);
 }
 
 void loop()
@@ -201,6 +228,8 @@ void loop()
     break;
     }
 
+    g_cnt_Status_wo_RX = 0;
+
     g_State = E_STATE_IDLE;
 
     if (G_DEBUG)
@@ -225,6 +254,26 @@ void statusLED(void)
   else
   {
     digitalWrite(C_PIN_STS_LED, 0);
+  }
+
+  if( g_cnt_Status_wo_RX++ > 10 )
+  {
+    // connection lost
+    g_Tally_PGM = false;
+    g_Tally_PRV = false;
+
+    digitalWrite(C_PIN_CONN_LED, 0);
+
+    g_cnt_Status_wo_RX = 11; // prevent overflow
+  }
+  else if( g_cnt_Status_wo_RX == 0 )
+  {
+    // connected
+    digitalWrite(C_PIN_CONN_LED, 1);
+  }
+  else
+  {
+    // NOP
   }
 }
 

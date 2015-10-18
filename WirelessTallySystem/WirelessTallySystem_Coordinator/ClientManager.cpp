@@ -71,8 +71,7 @@ void cClientManager::OnClientDataReceived(XBeeAddress64& arg_Addr, uint8_t *arg_
 {
   if( arg_DataLength >= 2u )
   {
-    uint8_t loc_cmd   = arg_ptr_Data[0];
-    uint8_t loc_value = arg_ptr_Data[1];
+    uint8_t loc_cmd = arg_ptr_Data[0];
 
     cTallyClient *loc_ptr_Client = GetClientByAddress(arg_Addr);
 
@@ -83,9 +82,25 @@ void cClientManager::OnClientDataReceived(XBeeAddress64& arg_Addr, uint8_t *arg_
       case 'S':
         {
           // handle source index
-          loc_ptr_Client->SetSourceIndex(static_cast<uint16_t>(loc_value - 0x30));
+          if( arg_DataLength == 2u )
+          {
+            uint8_t loc_value = arg_ptr_Data[1] - 0x30u;
 
-          Serial << F("ClientManager :: client transmitted source index=") << (loc_value - 0x30) << F(", addr msb=0x") << _HEX(loc_ptr_Client->GetAddress().getMsb()) << F(" lsb=0x") << _HEX(loc_ptr_Client->GetAddress().getLsb())
+            loc_ptr_Client->SetSourceIndex(static_cast<uint16_t>(loc_value));
+          }
+          else if( arg_DataLength == 3u )
+          {
+            uint8_t loc_value  = (arg_ptr_Data[1] - 0x30u)*10u;
+                    loc_value += arg_ptr_Data[2] - 0x30u;
+
+            loc_ptr_Client->SetSourceIndex(static_cast<uint16_t>(loc_value));
+          }
+          else
+          {
+
+          }
+
+          Serial << F("ClientManager :: client transmitted source index=") << loc_ptr_Client->GetSourceIndex() << F(", addr msb=0x") << _HEX(loc_ptr_Client->GetAddress().getMsb()) << F(" lsb=0x") << _HEX(loc_ptr_Client->GetAddress().getLsb())
             << F(", ID=") << loc_ptr_Client->GetID() << F("\n");
         }
       break;
