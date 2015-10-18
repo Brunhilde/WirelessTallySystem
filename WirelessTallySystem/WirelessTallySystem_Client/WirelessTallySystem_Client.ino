@@ -185,8 +185,6 @@ void loop()
     {
       if (g_ID == 1)
       {
-        digitalWrite(C_PIN_TALLY_PGM, 1);
-
         g_Tally_PGM = true;
 
         Serial << F("PGM tally 'ON'\n");
@@ -194,8 +192,6 @@ void loop()
       }
       else
       {
-        digitalWrite(C_PIN_TALLY_PGM, 0);
-
         g_Tally_PGM = false;
 
         Serial << F("PGM tally 'OFF'\n");
@@ -208,8 +204,6 @@ void loop()
     {
       if (g_ID == 1)
       {
-        digitalWrite(C_PIN_TALLY_PRV, 1);
-
         g_Tally_PRV = true;
 
         Serial << F("PRV tally 'ON'\n");
@@ -217,8 +211,6 @@ void loop()
       }
       else
       {
-        digitalWrite(C_PIN_TALLY_PRV, 0);
-
         g_Tally_PRV = false;
 
         Serial << F("PRV tally 'OFF'\n");
@@ -238,6 +230,26 @@ void loop()
     }
   }
   break;
+  }
+
+
+  // output
+  if( g_Tally_PGM )
+  {
+    digitalWrite(C_PIN_TALLY_PGM, 1);
+  }
+  else
+  {
+    digitalWrite(C_PIN_TALLY_PGM, 0);
+  }
+
+  if( g_Tally_PRV )
+  {
+    digitalWrite(C_PIN_TALLY_PRV, 1);
+  }
+  else
+  {
+    digitalWrite(C_PIN_TALLY_PRV, 0);
   }
 }
 
