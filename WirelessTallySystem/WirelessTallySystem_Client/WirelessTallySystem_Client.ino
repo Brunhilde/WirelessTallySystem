@@ -268,7 +268,7 @@ void statusLED(void)
     digitalWrite(C_PIN_STS_LED, 0);
   }
 
-  if( g_cnt_Status_wo_RX++ > 10 )
+  if( g_cnt_Status_wo_RX++ > 100 )
   {
     // connection lost
     g_Tally_PGM = false;

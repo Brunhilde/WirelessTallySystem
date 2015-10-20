@@ -32,7 +32,7 @@ byte mac[] = { 0x90, 0xA2, 0xDA, 0x10, 0x25, 0x4E }; // <= SETUP!  MAC address o
 IPAddress clientIp(172, 31, 8, 100);                 // <= SETUP!  IP address of the Arduino
 IPAddress switcherIp(172, 31, 8, 1);                 // <= SETUP!  IP address of the ATEM Switcher
 
-long g_t_Sync = 500; // [ms] (re-)sync timer period
+long g_t_Sync = 1000; // [ms] (re-)sync timer period
 
 
 // ----------------------------------------------
