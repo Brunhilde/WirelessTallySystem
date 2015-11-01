@@ -221,6 +221,7 @@ void loop()
     }
 
     g_cnt_Status_wo_RX = 0;
+    digitalWrite(C_PIN_CONN_LED, 1);
 
     g_State = E_STATE_IDLE;
 
@@ -277,15 +278,6 @@ void statusLED(void)
     digitalWrite(C_PIN_CONN_LED, 0);
 
     g_cnt_Status_wo_RX = 11; // prevent overflow
-  }
-  else if( g_cnt_Status_wo_RX == 0 )
-  {
-    // connected
-    digitalWrite(C_PIN_CONN_LED, 1);
-  }
-  else
-  {
-    // NOP
   }
 }
 
