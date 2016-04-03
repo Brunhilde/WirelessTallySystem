@@ -27,6 +27,7 @@ const int C_PIN_SS_RX = 2;
 const int C_PIN_SS_TX = 3;
 
 const int C_PIN_STS_LED = 9;
+const int C_PIN_LCL_TALLY = 8;
 
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x10, 0x25, 0x4E }; // <= SETUP!  MAC address of the Arduino
 IPAddress clientIp(172, 31, 8, 100);                 // <= SETUP!  IP address of the Arduino
@@ -54,6 +55,10 @@ void setup()
 {
   // status LED
   pinMode(C_PIN_STS_LED, OUTPUT);
+
+  // local tally output
+  pinMode(C_PIN_LCL_TALLY, OUTPUT);
+  digitalWrite(C_PIN_LCL_TALLY, LOW);
 
   // serial port for status messages
   Serial.begin(9600);
@@ -101,11 +106,30 @@ void loop()
       uint8_t loc_State = AtemSwitcher.getTallyByIndexTallyFlags(i);
 
       cClientManager::GetInstance()->SetClientTallyState(i+1u, loc_State);
+
+      // local tally output
+      if( (i+1u) == 7u )
+      {
+        if( loc_State & 0x01 )
+        {
+          digitalWrite(C_PIN_LCL_TALLY, HIGH);
+        }
+        else if( !(loc_State & 0x01) )
+        {
+          digitalWrite(C_PIN_LCL_TALLY, LOW);
+        }
+        else
+        {
+          // NOP
+        }
+      }
     }
   }
   else
   {
     g_b_ATEM_connected = false;
+
+    digitalWrite(C_PIN_LCL_TALLY, LOW);
 
     Timer1.stop();
   }
@@ -131,7 +155,9 @@ void loop()
       if( loc_sts_TX.getDeliveryStatus() != SUCCESS )
       {
         // unsuccessful TX, client is lost
+        Timer1.stop(); //noInterrupts();
         cClientManager::GetInstance()->OnClientDisconnected(loc_sts_TX.getFrameId() - 1u);
+        Timer1.start(); // interrupts();
       }
     }
     else if( xbee.getResponse().getApiId() == ZB_IO_NODE_IDENTIFIER_RESPONSE )
@@ -139,7 +165,9 @@ void loop()
       ZBRxResponse loc_sts_RX;
       xbee.getResponse().getZBRxResponse(loc_sts_RX);
       
+      Timer1.stop(); //noInterrupts();
       cClientManager::GetInstance()->OnClientConnected(loc_sts_RX.getRemoteAddress64());
+      Timer1.start(); //interrupts();
     }
     else
     {

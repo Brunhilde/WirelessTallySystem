@@ -277,7 +277,7 @@ void statusLED(void)
 
     digitalWrite(C_PIN_CONN_LED, 0);
 
-    g_cnt_Status_wo_RX = 11; // prevent overflow
+    g_cnt_Status_wo_RX = 101; // prevent overflow
   }
 }
 
